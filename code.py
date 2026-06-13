@@ -215,7 +215,7 @@ ys = [1.0, -1.0, -1.0, 1.0] # desired targets
 
 m = MLP(3, [4,4,1])
 
-for epoch in range(20):
+for epoch in range(1001):
     y_hat = [m(x) for x in xs]  
     
     loss = sum((y_hat - ys)**2 for y_hat, ys in zip(y_hat, ys))
@@ -228,5 +228,5 @@ for epoch in range(20):
     for p in m.parameters():
         p.data += -p.grad * 0.01
 
-    if epoch % 5 == 0:
-        print(f"epoch: {epoch} loss {loss} y: {y_hat}")
+    if epoch % 100 == 0:
+        print(f"epoch: {epoch} loss {loss} \n y_hat: {y_hat} \n\n")
