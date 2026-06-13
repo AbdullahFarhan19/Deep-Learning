@@ -202,7 +202,7 @@ class Value : public std::enable_shared_from_this<Value>{
         
 };
 
-// The Neuron calss uses the Mersene Twister algorithm that is much more "random" then the rand() function 
+// The Neuron class uses the Mersene Twister algorithm that is much more "random" then the rand() function 
 // and doesnt have the RAND_MAX constraint. This is used to initialize the weights and the bias.
 // shared_ptrs are not necessary for Neuron, Layer or MLP, but they are used for unformity even though
 // they introduce slight overhead
