@@ -1,5 +1,5 @@
 import regex as re
-from helper import get_stats, merge
+from GPT.tokenizer.helper import get_stats, merge
 
 class BasicTokenizer:
     def __init__(self):
