@@ -1,11 +1,18 @@
-Hello and welcome to my journey going through Andrej Karpathy's Neural Network Course!
+Hello and welcome to my journey going through Andrej Karpathy's Zero to Hero Course!
 
-Up till now, I have completed a code along of both the micorgrad video and the first 2 videos of implementing makemore. I also decided to make a C++ implementation of micorgrad, the details of which are:
+This REPO includes:
+
+- Micrograd implementation 
+- Sequential deep dives through makemore
+- Both the Basic and Regex Tokenizers for GPT
+- GPT-2 base model replica 
+
+I also decided to make a C++ implementation of micorgrad, the details of which are:
 
 - Uses shared_ptrs to prevent copying nodes
-- Implements Neuron, Layer and MLP to a tea
+- Implements Neuron, Layer and MLP to a tee
 - Includes operator overloads
-- Takes some creative privilges where required
+- Takes some creative privileges where required
 
 - Does not implement graphviz
 - Digraph files can be completely ignored, just there for record keeping
