@@ -7,6 +7,10 @@ import torch
 import torch.nn as nn
 from torch.nn import functional as F
 from transformers import GPT2LMHeadModel
+import torch.distributed as dist
+
+ddp_rank = int(os.environ.get("RANK", 0)) # current number of GPU
+master_process = ddp_rank == 0
 
 DATA_CACHE_DIR = os.path.join(os.path.dirname(__file__), "hellaswag")
 
@@ -40,21 +44,26 @@ enc = tiktoken.get_encoding("gpt2")
 def download(split):
     os.makedirs(DATA_CACHE_DIR, exist_ok = True)
     data_url = hellaswags[split]
-    data_filename = os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.json")
+    data_filename = os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl")
 
-    if not os.path.exists(data_filename):
+    if not os.path.exists(data_filename) and master_process:
         print(f"downloading {data_url} to {data_filename}")
         download_file(data_url, data_filename)
 
 def iterate_examples(split):
     download(split)
 
+    ddp = int(os.environ.get("RANK", -1)) != -1
+
+    if ddp:
+        dist.barrier()
+
     with open(os.path.join(DATA_CACHE_DIR, f"hellaswag_{split}.jsonl"), "r") as f:
         for line in f:
             example = json.loads(line) 
             yield example
 
-def render_examples(example):
+def render_example(example):
     ctx = example["ctx"]
     label = example["label"]
     endings = example["endings"]
@@ -65,13 +74,13 @@ def render_examples(example):
         "ending_tokens": []
     }
 
-    ctx_tokens = enc(ctx)
+    ctx_tokens = enc.encode(ctx)
     data["ctx_tokens"] = ctx_tokens
     tok_rows = []
     mask_rows = []
 
     for end in endings:
-        end_tokens = enc.encode("" + end) # gets the end token and prepends a space since this will be appended to the ctx token
+        end_tokens = enc.encode(" " + end) # gets the end token and prepends a space since this will be appended to the ctx token
         tok_rows.append(ctx_tokens + end_tokens)
         mask_rows.append([0] * len(ctx_tokens) + [1] * len(end_tokens)) # 0s for ctx and 1s for endings
         data["ending_tokens"].append(end_tokens)
@@ -97,7 +106,7 @@ def evaluate(model_type, device):
     num_total        = 0
 
     for example in iterate_examples("val"): # there are 10,042 examples in total in val
-        data, tokens, mask, label = render_examples(example)
+        data, tokens, mask, label = render_example(example)
         tokens, mask = tokens.to(device), mask.to(device)
 
         # tokens -> (4, max_len)
@@ -107,10 +116,10 @@ def evaluate(model_type, device):
         shift_tokens = tokens[..., 1:]
         shift_logits = (logits[..., :-1, :]).contiguous() # get all logits except the last one, since the last one has no prediction after it
         flat_shift_tokens = shift_tokens.view(-1)
-        flat_shift_logits = shift_logits.view(-1, shift_logits.size(1))
+        flat_shift_logits = shift_logits.view(-1, shift_logits.size(-1))
 
         shift_losses = F.cross_entropy(flat_shift_logits, flat_shift_tokens, reduction='none') # prevents reduction into one single value 
-        shift_losses.view(shift_tokens.size(0), -1) # converts the 1D losses tensor into a (4, max_len)
+        shift_losses = shift_losses.view(shift_tokens.size(0), -1) # converts the 1D losses tensor into a (4, max_len)
         shift_mask = (mask[..., 1:]).contiguous()
         shift_masked_losses = shift_mask * shift_losses # mask the losses such that they only show the ending tokens
 
